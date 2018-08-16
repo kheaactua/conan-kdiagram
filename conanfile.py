@@ -2,7 +2,7 @@
 # -*- coding: future_fstrings -*-
 # -*- coding: utf-8 -*-
 
-import os
+import os, glob
 from conans import ConanFile, CMake, tools
 
 
@@ -30,7 +30,6 @@ class KdiagramConan(ConanFile):
         self.run(f'cd {self.name} && git checkout v{self.version}')
 
     def build(self):
-
         from platform_helpers import adjustPath
 
         cmake = CMake(self)
@@ -47,6 +46,22 @@ class KdiagramConan(ConanFile):
         cmake.install()
 
     def package_info(self):
-        self.cpp_info.libs = tools.collect_libs(self)
+        # Find the folder in 'lib'
+        arch_path = ''
+        for file in glob.glob(os.path.join(self.package_folder, 'lib', '*')):
+            if os.path.isdir(file) and file != '.' and file != '..':
+                arch_path = os.path.basename(file)
+
+        self.cpp_info.libsdir = [os.path.join('lib', arch_path)]
+        self.cpp_info.libs = tools.collect_libs(self, folder=self.cpp_info.libsdir[0])
+
+        # Put the CMake find scripts in the resource directory
+        self.cpp_info.resdirs = []
+        for dir in glob.glob(os.path.join(self.package_folder, 'lib', arch_path, 'cmake', 'K*')):
+            if os.path.isdir(dir):
+                # Best to strip the pacakge_folder, even though we just add
+                # this in the consumer recipe
+                dir = dir.replace(self.package_folder, '')[1:]
+                self.cpp_info.resdirs.append(dir)
 
 # vim: ts=4 sw=4 expandtab ffs=unix ft=python foldmethod=marker :
